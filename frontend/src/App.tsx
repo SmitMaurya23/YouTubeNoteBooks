@@ -1,190 +1,165 @@
-import { useState } from 'react';
+// App.tsx
+import { useState, useEffect } from 'react';
 import axios, { AxiosError } from 'axios';
+import Navbar from './components/Navbar';
+import YouTubeNoteBook from './components/YouTubeNotebook';
+import LoginModal from './components/LoginModal'; // New import
+import SignUpModal from './components/SignupModal'; // New import
+import Home from './components/Home';
 import './App.css';
 
-// Define interfaces for API responses
 interface VideoSubmissionResponse {
   message: string;
   video_id: string;
 }
 
-interface TranscriptEntry {
-  text: string;
-  start: number;
-  duration: number;
-}
-
-interface TranscriptResponse {
-  video_id: string;
-  transcript: TranscriptEntry[];
-}
-
-interface DescriptionResponse {
-  video_id: string;
-  title: string;
-  keywords: string[];
-  category_tags: string[];
-  detailed_description: string;
-  summary: string;
-}
-
 function App() {
-  const [url, setUrl] = useState<string>('');
-  const [videoId, setVideoId] = useState<string>('');
-  const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
-  const [description, setDescription] = useState<DescriptionResponse | null>(null);
-  const [error, setError] = useState<string>('');
-  const [isLoadingTranscript, setIsLoadingTranscript] = useState<boolean>(false);
-  const [isLoadingDescription, setIsLoadingDescription] = useState<boolean>(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showSignUpModal, setShowSignUpModal] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setTranscript([]);
-    setDescription(null);
+  // States for LinkSubmission when creating a new notebook
+  const [submissionLoading, setSubmissionLoading] = useState<boolean>(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [currentVideoId, setCurrentVideoId] = useState<string | null>(null); // To hold videoId for new notebook creation
+  const [currentNotebookId, setCurrentNotebookId] = useState<string | null>(null); // To hold notebookId for active notebook
+  const [isCreatingNewNotebook, setIsCreatingNewNotebook] = useState<boolean>(false); // To indicate if user is creating a new one
+
+
+  useEffect(() => {
+    // Check for existing user session on component mount
+    const storedUserId = localStorage.getItem('user_id');
+    const storedUserName = localStorage.getItem('user_name');
+    if (storedUserId && storedUserName) {
+      setUserId(storedUserId);
+      setUserName(storedUserName);
+    } else {
+      // If no user is logged in, show login modal by default
+      setShowLoginModal(true);
+    }
+  }, []);
+
+  const handleLoginSuccess = (id: string, name: string) => {
+    setUserId(id);
+    setUserName(name);
+    setShowLoginModal(false);
+  };
+
+  const handleSignUpSuccess = () => {
+    alert('Account created successfully! Please log in.');
+    setShowSignUpModal(false);
+    setShowLoginModal(true); // After sign up, prompt for login
+  };
+
+  const handleLogout = () => {
+    setUserId(null);
+    setUserName(null);
+    localStorage.removeItem('user_id');
+    localStorage.removeItem('user_name');
+    setCurrentVideoId(null);
+    setCurrentNotebookId(null);
+    setShowLoginModal(true); // Show login modal after logout
+  };
+
+  // This is for submitting a video link when creating a *new* notebook
+  const handleSubmitVideoForNewNotebook = async (url: string, notebookTitle: string) => {
+    setSubmissionLoading(true);
+    setSubmissionError(null);
+    setCurrentVideoId(null);
+
     try {
-      const response = await axios.post<VideoSubmissionResponse>('http://localhost:8000/submit-video', { url });
-      setVideoId(response.data.video_id);
+      // Step 1: Submit video to get video_id
+      const videoResponse = await axios.post<VideoSubmissionResponse>('http://localhost:8000/submit-video', { url });
+      const newVideoId = videoResponse.data.video_id;
+      setCurrentVideoId(newVideoId);
+
+      // Step 2: Create a new notebook entry with this video_id
+      if (userId) {
+        const notebookCreateResponse = await axios.post<{ message: string; notebook_id: string }>(
+          'http://localhost:8000/notebooks',
+          { user_id: userId, video_id: newVideoId, notebook_title: notebookTitle }
+        );
+        setCurrentNotebookId(notebookCreateResponse.data.notebook_id);
+        setIsCreatingNewNotebook(false); // Done creating new notebook
+      } else {
+        throw new Error("User not logged in to create a notebook.");
+      }
+
     } catch (err) {
-      const errorMessage = (err as AxiosError<{ detail: string }>).response?.data?.detail || 'Error submitting video';
-      setError(errorMessage);
+      const errorMessage = (err as AxiosError<{ detail: string }>).response?.data?.detail || 'Error submitting video or creating notebook';
+      setSubmissionError(errorMessage);
+      console.error("Video submission/notebook creation error:", err);
+    } finally {
+      setSubmissionLoading(false);
     }
   };
 
-  const fetchTranscript = async () => {
-    setError('');
-    setIsLoadingTranscript(true);
-    try {
-      const response = await axios.get<TranscriptResponse>(`http://localhost:8000/transcript/${videoId}`);
-      setTranscript(response.data.transcript);
-    } catch (err) {
-      const errorMessage = (err as AxiosError<{ detail: string }>).response?.data?.detail || 'Error fetching transcript';
-      setError(errorMessage);
-    } finally {
-      setIsLoadingTranscript(false);
-    }
+  const handleSelectExistingNotebook = (notebookId: string, videoId: string) => {
+    setCurrentNotebookId(notebookId);
+    setCurrentVideoId(videoId);
+    setIsCreatingNewNotebook(false);
   };
 
-  const fetchDescription = async () => {
-    setError('');
-    setIsLoadingDescription(true);
-    try {
-      const response = await axios.get<DescriptionResponse>(`http://localhost:8000/description/${videoId}`);
-      setDescription(response.data);
-    } catch (err) {
-      const errorMessage = (err as AxiosError<{ detail: string }>).response?.data?.detail || 'Error fetching description';
-      setError(errorMessage);
-    } finally {
-      setIsLoadingDescription(false);
-    }
+  const handleBackToHome = () => {
+    setCurrentNotebookId(null);
+    setCurrentVideoId(null);
+    setIsCreatingNewNotebook(false);
+    setSubmissionError(null); // Clear any errors
+  };
+
+  const handleCreateNewNotebookClick = () => {
+    setIsCreatingNewNotebook(true);
+    setCurrentNotebookId(null); // Ensure no old notebook is active
+    setCurrentVideoId(null);
   };
 
   return (
-    <div className="container mx-auto p-4 max-w-2xl">
-      <h1 className="text-3xl font-bold mb-6 text-center">YouTube Notebook</h1>
-      
-      <form onSubmit={handleSubmit} className="mb-6">
-        <input
-          type="text"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="Enter YouTube URL"
-          className="border p-3 rounded w-full mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          type="submit"
-          className="bg-blue-500 text-white p-3 rounded w-full hover:bg-blue-600 transition-colors"
-        >
-          Submit Video
-        </button>
-      </form>
+    <div className="min-h-screen bg-gray-100 font-sans antialiased">
+      <Navbar userName={userName} onLogout={handleLogout} onLoginClick={() => setShowLoginModal(true)} />
 
-      {videoId && (
-        <div className="mb-6">
-          <p className="mb-3 text-gray-700">Video ID: <span className="font-semibold">{videoId}</span></p>
-          <div className="flex space-x-4">
-            <button
-              onClick={fetchTranscript}
-              disabled={isLoadingTranscript}
-              className={`flex-1 p-3 rounded text-white transition-colors ${
-                isLoadingTranscript ? 'bg-green-300 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'
-              }`}
-            >
-              {isLoadingTranscript ? 'Loading...' : 'Get Transcript'}
-            </button>
-            <button
-              onClick={fetchDescription}
-              disabled={isLoadingDescription}
-              className={`flex-1 p-3 rounded text-white transition-colors ${
-                isLoadingDescription ? 'bg-purple-300 cursor-not-allowed' : 'bg-purple-500 hover:bg-purple-600'
-              }`}
-            >
-              {isLoadingDescription ? 'Loading...' : 'Get Description'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <p className="text-red-500 mb-6 p-3 bg-red-100 rounded">{error}</p>
-      )}
-
-      {transcript.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-3">Transcript</h2>
-          <ul className="list-disc pl-5 bg-gray-50 p-4 rounded max-h-96 overflow-y-auto">
-            {transcript.map((entry, index) => (
-              <li key={index} className="mb-2">
-                <span className="text-gray-600">[{entry.start.toFixed(1)}s]:</span> {entry.text}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {description && (
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-xl font-semibold mb-3">Video Title</h2>
-            <p className="bg-gray-50 p-4 rounded font-medium">{description.title || 'No title available'}</p>
-          </div>
-
-            <div>
-            <h2 className="text-xl font-semibold mb-3">Category Tags</h2>
-            <p className="bg-gray-50 p-4 rounded italic">
-              {description.category_tags && description.category_tags.length > 0
-              ? description.category_tags.join(', ')
-              : 'No category tags available'}
-            </p>
-            </div>
-
-          <div>
-            <h2 className="text-xl font-semibold mb-3">Keywords</h2>
-            <p className="bg-gray-50 p-4 rounded italic">
-              {description.keywords && description.keywords.length > 0
-              ? description.keywords.join(', ')
-              : 'No keywords available'}
-            </p>
-            </div>
-
-          <div>
-            <h2 className="text-xl font-semibold mb-3">Detailed Description</h2>
-            <ul className="list-disc pl-5 bg-gray-50 p-4 rounded">
-              {description.detailed_description.split('||').map((point, index) => (
-                <li key={index} className="mb-2">{point || 'No details available'}</li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold mb-3">Summary</h2>
-            <div className="bg-gray-50 p-4 rounded">
-              {description.summary.split('||').map((paragraph, index) => (
-                <p key={index} className="mb-2">{paragraph || 'No summary available'}</p>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      <main className="py-8">
+        {!userId ? (
+          <>
+            {showLoginModal && (
+              <LoginModal
+                isOpen={showLoginModal}
+                onClose={() => setShowLoginModal(false)}
+                onLoginSuccess={handleLoginSuccess}
+                onSwitchToSignUp={() => { setShowLoginModal(false); setShowSignUpModal(true); }}
+              />
+            )}
+            {showSignUpModal && (
+              <SignUpModal
+                isOpen={showSignUpModal}
+                onClose={() => setShowSignUpModal(false)}
+                onSignUpSuccess={handleSignUpSuccess}
+                onSwitchToLogin={() => { setShowSignUpModal(false); setShowLoginModal(true); }} 
+              />
+            )}
+            {/* Optionally show a message if not logged in and modals are closed */}
+            {!showLoginModal && !showSignUpModal && (
+                <p className="text-center text-gray-600 mt-10">Please log in to continue.</p>
+            )}
+          </>
+        ) : (
+          // User is logged in
+          currentNotebookId && currentVideoId ? (
+            <YouTubeNoteBook videoId={currentVideoId} notebookId={currentNotebookId} onBack={handleBackToHome} userId={userId} />
+          ) : (
+            <Home
+              userId={userId}
+              onCreateNewNotebook={handleCreateNewNotebookClick}
+              onSelectNotebook={handleSelectExistingNotebook}
+              isCreatingNewNotebook={isCreatingNewNotebook}
+              onCancelNewNotebook={() => setIsCreatingNewNotebook(false)}
+              onSubmitVideoForNewNotebook={handleSubmitVideoForNewNotebook}
+              submissionLoading={submissionLoading}
+              submissionError={submissionError}
+            />
+          )
+        )}
+      </main>
     </div>
   );
 }

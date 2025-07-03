@@ -11,7 +11,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 # Import the vector_store from vector_db.py
 # This assumes vector_db.py correctly initializes `vector_store`
-from backend.Helpers.vector_db import vector_store
+from Functions.Helpers.vector_db import vector_store
 
 load_dotenv()
 

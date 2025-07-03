@@ -16,7 +16,7 @@ def extract_video_id(url: str) -> str:
 def fetch_transcript(video_id: str) -> list:
     """Fetch and format transcript from YouTube."""
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=["en-GB", "en-IN", "en-CA", "en-AU", "en"])
         return [{"text": entry["text"], "start": entry["start"], "duration": entry["duration"]} for entry in transcript]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching transcript: {str(e)}")

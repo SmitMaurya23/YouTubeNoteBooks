@@ -5,7 +5,7 @@ from typing import List, Dict, Optional
 import sys
 
 # Import vector_store and embeddings_model
-from backend.Helpers.vector_db import vector_store, embeddings_model
+from Functions.Helpers.vector_db import vector_store, embeddings_model
 
 # Import LangChain components
 from langchain_core.prompts import ChatPromptTemplate

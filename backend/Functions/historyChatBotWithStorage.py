@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime
 import uuid
-
+from bson.objectid import ObjectId
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -16,7 +16,7 @@ from pymongo.errors import ConnectionFailure, OperationFailure
 
 # Import the vector_store from vector_db.py
 # This assumes vector_db.py correctly initializes `vector_store`
-from backend.Helpers.vector_db import vector_store
+from Functions.Helpers.vector_db import vector_store
 
 load_dotenv()
 
@@ -38,6 +38,7 @@ chat_sessions_collection = None
 try:
     mongo_client = MongoClient(MONGO_URI)
     db = mongo_client["youtube_notebook"]
+    notebooks_collection = db["notebooks"]
     chat_sessions_collection = db["chat_sessions"] # New collection for chat sessions
     # Ensure index on session_id for faster lookups
     chat_sessions_collection.create_index("session_id", unique=True)
@@ -120,29 +121,51 @@ def summarize_chat_history(
         return "Error: Could not summarize previous conversation."
 
 
-def create_new_chat_session(user_id: str = "1", video_id: Optional[str] = None) -> str:
+def create_new_chat_session(
+    user_id: str,
+    notebook_id: str, # ADD THIS PARAMETER
+    video_id: Optional[str] = None,
+    first_user_prompt: str = ""
+) -> str:
     """
     Creates a new chat session in MongoDB and returns its session_id.
+    Stores the initial user prompt and links it to a specific notebook.
     """
     if chat_sessions_collection is None:
         raise ConnectionError("MongoDB chat_sessions_collection is not initialized.")
+    if notebooks_collection is None: # ADD THIS CHECK
+        raise ConnectionError("MongoDB notebooks_collection is not initialized.")
 
     session_id = str(uuid.uuid4())
     session_data = {
         "session_id": session_id,
         "user_id": user_id,
-        "video_id": video_id, # Can be None for general chats
-        "history": [], # Stores messages as {"role": "user/assistant", "content": "..."}
+        "video_id": video_id,
+        "notebook_id": notebook_id, # ADD THIS FIELD TO SESSION DATA
+        "history": [],
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
+        "first_prompt": first_user_prompt
     }
     try:
         chat_sessions_collection.insert_one(session_data)
-        print(f"New chat session created: {session_id} for user {user_id}")
+        print(f"New chat session created: {session_id} for user {user_id}, video {video_id or 'N/A'}, notebook {notebook_id}")
+
+        # ADD THIS BLOCK: Update the notebook document with the new session ID
+        notebooks_collection.update_one(
+            {"_id": ObjectId(notebook_id)}, # Query by notebook's ObjectId
+            {
+                "$addToSet": {"session_id_list": session_id}, # Add session_id to the list if not already there
+                "$set": {"latest_session_id": session_id, "updated_at": datetime.utcnow()} # Set this as the latest session
+            },
+            upsert=False # Do not create a new notebook if it doesn't exist
+        )
+        print(f"Notebook {notebook_id} updated with new latest session: {session_id}")
+
         return session_id
     except Exception as e:
-        print(f"Error creating new chat session: {e}")
-        raise
+        print(f"Error creating new chat session or updating notebook: {e}")
+        raise # Re-raise the exception for FastAPI to catch
 
 def get_chat_history_from_db(session_id: str) -> List[Dict[str, str]]:
     """
@@ -198,9 +221,9 @@ def update_chat_history_in_db(
 def get_history_chatbot_response_with_storage(
     query_text: str,
     session_id: str,
-    user_id: str = "1", # Default user_id
+    user_id: str,
     target_video_id: Optional[str] = None
-) -> str:
+) -> Tuple[str, str]: # NEW: Returns a tuple (AI response, session_id)
     """
     Generates a chatbot response using RAG, incorporating conversation history
     from storage and video context. Updates the history in storage.
@@ -213,15 +236,15 @@ def get_history_chatbot_response_with_storage(
         target_video_id (Optional[str]): If provided, limits the search to a specific video.
 
     Returns:
-        str: The generated answer from the chatbot.
+        Tuple[str, str]: The generated answer from the chatbot and the session ID.
     """
     if llm_chat_history is None:
-        return "Error: Chatbot LLM with history is not initialized."
+        return "Error: Chatbot LLM with history is not initialized.", session_id
     if vector_store is None:
-        return "Error: Vector store is not initialized. Cannot retrieve context."
+        return "Error: Vector store is not initialized. Cannot retrieve context.", session_id
     if chat_sessions_collection is None:
-        return "Error: MongoDB chat_sessions_collection is not initialized."
-
+        return "Error: MongoDB chat_sessions_collection is not initialized.", session_id
+    
     # 1. Retrieve existing chat history from DB
     raw_chat_history = get_chat_history_from_db(session_id)
 
@@ -295,7 +318,7 @@ def get_history_chatbot_response_with_storage(
              "the conversation history to answer the user's question. "
              "If you don't know the answer based on the provided context, "
              "politely state that you cannot find the answer in the given information. "
-             "Do not make up answers. Be concise but informative."
+             "You can make up answers but explicity mention that this is out of video information. Be concise but informative."
             ),
             MessagesPlaceholder(variable_name="chat_history"),
             ("user", "Context: {context}\nQuestion: {question}"),
@@ -319,76 +342,54 @@ def get_history_chatbot_response_with_storage(
         # 5. Update chat history in DB (always save full turn for persistence)
         update_chat_history_in_db(session_id, query_text, ai_response)
 
-        return ai_response
+        return ai_response, session_id # NEW: Return session_id
     except Exception as e:
         print(f"Error during RAG chain invocation in historyChatBotWithStorage.py: {e}")
-        return f"Error generating response: {e}"
-
-# This __name__ == "__main__" block is for testing historyChatBotWithStorage.py independently
-if __name__ == "__main__":
-    print("--- Testing historyChatBotWithStorage.py module (Terminal Chat with Storage and Truncation) ---")
-    print("Type 'exit' to end the chat.")
-
-    default_user_id = "terminal_user_1"
+        return f"Error generating response: {e}", session_id
     
-    # !!! IMPORTANT !!!
-    # Replace this with an actual video ID that has been processed and embedded
-    # via your FastAPI '/transcript/{video_id}' endpoint.
-    # If you don't have one, the chatbot will only rely on general knowledge (if any)
-    # or will state it can't find info.
-    test_video_id = "eWiBLgxOcW0" # <--- REPLACE WITH A REAL VIDEO ID FROM YOUR DB
 
-    # --- Test 1: Chatting with a specific video context and new session ---
-    print(f"\n--- Starting NEW chat session about video ID: {test_video_id} ---")
-    print("Please ensure this video ID has its transcript embedded in your vector DB.")
+def get_chat_session_summary(session_id: str) -> Optional[Dict]:
+    """
+    Retrieves a summary (first prompt, creation date, and notebook ID) for a given session ID.
+    """
+    if chat_sessions_collection is None:
+        print("Warning: MongoDB chat_sessions_collection is not initialized for summary.")
+        return None
     try:
-        current_session_id = create_new_chat_session(user_id=default_user_id, video_id=test_video_id)
-        print(f"New session ID: {current_session_id}")
-    except Exception as e:
-        print(f"Failed to create new session: {e}. Exiting.")
-        exit()
-
-    print(f"Chat will summarize history after {MAX_VERBATIM_HISTORY_LENGTH} turns (user+AI pairs).")
-    turn_count = 0
-    while True:
-        user_input = input(f"You (Turn {turn_count+1}, Specific Video, New Session): ")
-        if user_input.lower() == 'exit':
-            break
-
-        ai_response = get_history_chatbot_response_with_storage(
-            user_input, current_session_id, default_user_id, test_video_id
+        session_doc = chat_sessions_collection.find_one(
+            {"session_id": session_id},
+            {"session_id": 1, "first_prompt": 1, "created_at": 1, "notebook_id": 1} # ADDED "notebook_id": 1
         )
-        print(f"AI (Turn {turn_count+1}, Specific Video, New Session): {ai_response}")
-        turn_count += 1
+        if session_doc:
+            return {
+                "session_id": session_doc["session_id"],
+                "first_prompt": session_doc.get("first_prompt", "New Chat Session"),
+                "created_at": session_doc["created_at"].isoformat(),
+                "notebook_id": session_doc.get("notebook_id", None) # ADDED notebook_id
+            }
+        return None
+    except Exception as e:
+        print(f"Error retrieving chat session summary for {session_id}: {e}")
+        return None
+
+def get_notebook_chat_sessions_summaries(session_ids: List[str]) -> List[Dict]:
+    """
+    Retrieves summaries for a list of chat session IDs.
+    This function expects to receive the list of session_ids from main.py,
+    which gets them from the notebook document.
+    """
+    summaries = []
+    for s_id in session_ids:
+        summary = get_chat_session_summary(s_id)
+        if summary:
+            summaries.append(summary)
+    # Sort by created_at, most recent first
+    summaries.sort(key=lambda x: x["created_at"], reverse=True)
+    return summaries    
     
-    # --- Test 2: Resuming an existing chat session (if you still have the ID) ---
-    print("\n--- Resuming an existing chat session (if you have an ID) ---")
-    resume_session_id = input(f"Enter an existing session ID to resume (or press Enter to skip): ").strip()
 
-    if resume_session_id:
-        print(f"Attempting to resume session: {resume_session_id}")
-        if chat_sessions_collection is None:
-            print("Error: MongoDB chat_sessions_collection is not initialized. Cannot resume session.")
-        else:
-            session_doc = chat_sessions_collection.find_one({"session_id": resume_session_id})
-            if session_doc:
-                resumed_video_id = session_doc.get("video_id")
-                print(f"Resumed session is linked to video ID: {resumed_video_id}")
-                resumed_turn_count = len(session_doc.get("history", [])) // 2
-                print(f"Resumed session has {resumed_turn_count} existing turns.")
 
-                while True:
-                    user_input = input(f"You (Resumed Session, Turn {resumed_turn_count + 1}): ")
-                    if user_input.lower() == 'exit':
-                        break
-                    ai_response = get_history_chatbot_response_with_storage(
-                        user_input, resume_session_id, default_user_id, resumed_video_id
-                    )
-                    print(f"AI (Resumed Session, Turn {resumed_turn_count + 1}): {ai_response}")
-                    resumed_turn_count += 1
-            else:
-                print(f"Session ID '{resume_session_id}' not found. Skipping resume test.")
-    else:
-        print("Skipping resume session test.")
 
-    print("Chat session ended.")
+
+
+
