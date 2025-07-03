@@ -6,6 +6,7 @@ from langchain_mongodb.vectorstores import MongoDBAtlasVectorSearch
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings # Import the base Embeddings class
+from typing import List, Dict
 
 # Import native Vertex AI SDK components
 import vertexai
@@ -68,8 +69,6 @@ class VertexAIEmbeddingsNative(Embeddings):
         input_obj = TextEmbeddingInput(text, task_type="RETRIEVAL_QUERY")
         embeddings = self.client.get_embeddings([input_obj]) # Still a single input
         return list(embeddings[0].values)
-        embeddings = self.client.get_embeddings([input_obj]) # Still a single input
-        return list(embeddings[0].values)
 
 # --- Initialize MongoDB Client ---
 MONGO_URI = os.getenv("MONGODB_URI")
@@ -129,29 +128,105 @@ text_splitter = RecursiveCharacterTextSplitter(
     is_separator_regex=False,
 )
 
-def embed_and_store_transcript(video_id: str, transcript_text: str) -> bool:
+def embed_and_store_transcript(video_id: str, transcript_list: List[Dict]) -> bool:
     """
-    Chunks the transcript, generates embeddings, and stores them in MongoDB Atlas.
+    Chunks the transcript using a text splitter, aggregates timestamps for each chunk,
+    generates embeddings, and stores them in MongoDB Atlas.
+
+    Args:
+        video_id: The ID of the YouTube video.
+        transcript_list: The list of transcript entries from utils.fetch_transcript,
+                         e.g., [{"text": "...", "start": 0.0, "duration": 5.0}, ...]
     """
     if not vector_store:
         print("Vector store not initialized. Cannot embed and store transcript.")
         return False
-    if not transcript_text:
-        print(f"No transcript text provided for video ID: {video_id}. Skipping embedding.")
+    if not transcript_list:
+        print(f"No transcript list provided for video ID: {video_id}. Skipping embedding.")
         return False
 
-    print(f"Chunking transcript for video_id: {video_id}...")
-    chunks = text_splitter.create_documents(
-        texts=[transcript_text],
-        metadatas=[{"video_id": video_id, "source": f"youtube_transcript_{video_id}"}]
-    )
-    print(f"Transcript chunked into {len(chunks)} parts.")
+    print(f"Preparing chunks for video_id: {video_id} with timestamp metadata...")
 
-    # Add chunks to vector store
+    # 1. Create a single long string of the transcript and map original segment positions
+    full_transcript_text = ""
+    # This list will store (original_text, start_time, end_time, char_start_index, char_end_index)
+    original_segments_info = []
+    current_char_index = 0
+
+    for entry in transcript_list:
+        segment_text = entry.get("text", "")
+        segment_start = entry.get("start", 0.0)
+        segment_duration = entry.get("duration", 0.0)
+        segment_end = segment_start + segment_duration
+
+        original_segments_info.append(
+            (segment_text, segment_start, segment_end, current_char_index, current_char_index + len(segment_text))
+        )
+        full_transcript_text += segment_text + " " # Add a space for separation
+        current_char_index += len(segment_text) + 1 # +1 for the space
+
+    # 2. Use the RecursiveCharacterTextSplitter on the full transcript text
+    # This will return a list of strings (the chunks)
+    text_chunks = text_splitter.split_text(full_transcript_text)
+
+    final_documents_for_embedding = []
+
+    # 3. For each new chunk, find its aggregated start and end timestamp
+    for chunk_content in text_chunks:
+        # Find the character start and end index of this chunk within the full_transcript_text
+        # This is a simplified way; a more robust way would be to use the splitter's
+        # `create_documents` method if it provided character offsets in metadata,
+        # or to manually track. For `split_text`, we need to find the chunk's position.
+        # This assumes unique chunk content or careful handling of duplicates.
+        # A safer approach for character position:
+        try:
+            chunk_char_start = full_transcript_text.index(chunk_content)
+            chunk_char_end = chunk_char_start + len(chunk_content)
+        except ValueError:
+            # If chunk_content is not found directly (e.g., due to overlap or special chars),
+            # this method might fail. A more robust solution would involve iterating through
+            # the original text and tracking offsets.
+            print(f"Warning: Could not find chunk content in full transcript. Skipping chunk: {chunk_content[:50]}...")
+            continue
+
+        min_start_time = float('inf')
+        max_end_time = float('-inf')
+        found_overlap = False
+
+        # Iterate through original segments to find overlaps and aggregate timestamps
+        for original_text, original_start, original_end, original_char_start, original_char_end in original_segments_info:
+            # Check for overlap between the chunk's character range and the original segment's character range
+            # An overlap exists if:
+            # (chunk_start < original_end_char AND chunk_end > original_start_char)
+            if max(chunk_char_start, original_char_start) < min(chunk_char_end, original_char_end):
+                min_start_time = min(min_start_time, original_start)
+                max_end_time = max(max_end_time, original_end)
+                found_overlap = True
+
+        if found_overlap and min_start_time != float('inf') and max_end_time != float('-inf'):
+            # Create a Document for the new, larger chunk with aggregated timestamps
+            doc = Document(
+                page_content=chunk_content,
+                metadata={
+                    "video_id": video_id,
+                    "source": f"youtube_transcript_{video_id}",
+                    "start": min_start_time,
+                    "end": max_end_time,
+                    "duration": max_end_time - min_start_time # Calculate duration for convenience
+                }
+            )
+            final_documents_for_embedding.append(doc)
+        else:
+            print(f"Warning: No timestamp overlap found for chunk: {chunk_content[:50]}... Skipping.")
+
+
+    print(f"Created {len(final_documents_for_embedding)} larger, context-rich chunks for video_id: {video_id}.")
+
+    # Add documents to vector store
     try:
         # MongoDBAtlasVectorSearch.add_documents uses the 'embedding' object provided
-        vector_store.add_documents(documents=chunks)
-        print(f"Successfully embedded and stored {len(chunks)} chunks for video_id: {video_id}")
+        vector_store.add_documents(documents=final_documents_for_embedding)
+        print(f"Successfully embedded and stored {len(final_documents_for_embedding)} chunks for video_id: {video_id}")
         return True
     except Exception as e:
         print(f"Error embedding and storing chunks for video_id {video_id}: {e}")
@@ -160,36 +235,39 @@ def embed_and_store_transcript(video_id: str, transcript_text: str) -> bool:
 if __name__ == "__main__":
     # Example Usage for testing this module
     print("\n--- Testing vector_db.py module ---")
-    sample_video_id = "test_video_123" # Use a unique ID for testing
-    # A longer sample to ensure chunking happens
-    sample_transcript = ("This is the first part of a sample transcript for testing. It needs to be long enough "
-                         "to demonstrate how the RecursiveCharacterTextSplitter works by breaking it into multiple chunks. "
-                         "Each chunk will then be embedded using the native Vertex AI model and stored in MongoDB Atlas. "
-                         "We expect to see 3072-dimensional embeddings. The `task_type` for embedding documents is "
-                         "set to 'RETRIEVAL_DOCUMENT' and for queries to 'RETRIEVAL_QUERY'. "
-                         "This setup ensures consistency with how the model should be used for RAG purposes. "
-                         "Let's see if this direct approach successfully bypasses the previous `langchain_google_genai` "
-                         "and `langchain_google_vertexai` issues. If this works, it confirms that the native "
-                         "SDK is indeed the reliable path for embeddings in your specific environment.") * 10
+    sample_video_id = "test_video_123_chunked" # Use a unique ID for testing
+    # A sample transcript list with timestamps
+    sample_transcript_list = [
+        {"text": "This is the first part of a sample transcript for testing.", "start": 0.0, "duration": 5.0},
+        {"text": "It needs to be long enough to demonstrate how the RecursiveCharacterTextSplitter works.", "start": 5.5, "duration": 7.0},
+        {"text": "Each chunk will then be embedded using the native Vertex AI model and stored in MongoDB Atlas.", "start": 13.0, "duration": 8.0},
+        {"text": "We expect to see 3072-dimensional embeddings for these combined chunks.", "start": 21.5, "duration": 6.5},
+        {"text": "The task type for embedding documents is set to RETRIEVAL_DOCUMENT and for queries to RETRIEVAL_QUERY.", "start": 28.0, "duration": 9.0},
+        {"text": "This setup ensures consistency with how the model should be used for RAG purposes.", "start": 37.5, "duration": 7.5},
+        {"text": "Let's see if this direct approach successfully bypasses previous issues.", "start": 45.0, "duration": 6.0},
+        {"text": "If this works, it confirms that the native SDK is indeed the reliable path for embeddings in your specific environment.", "start": 51.5, "duration": 10.0},
+        {"text": "This final part concludes our sample transcript for testing the chunking and embedding process.", "start": 62.0, "duration": 8.0},
+    ] * 5 # Repeat to make it longer and ensure chunking occurs
 
     print(f"Attempting to embed and store sample transcript for video ID: {sample_video_id}")
-    success = True #embed_and_store_transcript(sample_video_id, sample_transcript)
+    success = embed_and_store_transcript(sample_video_id, sample_transcript_list)
     if success:
         print("Sample transcript processed successfully.")
 
         print("\nAttempting a similarity search (should find the sample text)")
         if vector_store:
             try:
-                # The vector_store uses its configured 'embeddings_model' for queries as well.
-                # No need to explicitly initialize query_embeddings_model separately.
                 query_results = vector_store.similarity_search(
-                    query="How does the text splitting work?",
-                    k=2
+                    query="How does the text splitting and embedding process work?",
+                    k=2,
+                    filter={"video_id": sample_video_id} # Filter by the test video ID
                 )
                 print("Similarity search results:")
                 for doc in query_results:
                     print(f"- Content: {doc.page_content[:100]}...")
                     print(f"  Metadata: {doc.metadata}")
+                    if 'start' in doc.metadata and 'end' in doc.metadata:
+                        print(f"  Time Range: {doc.metadata['start']} - {doc.metadata['end']} seconds")
             except Exception as e:
                 print(f"Error during similarity search: {e}")
         else:

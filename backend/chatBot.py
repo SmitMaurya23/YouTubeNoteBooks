@@ -115,7 +115,7 @@ if __name__ == "__main__":
     # with 'test_video_123' or other video data.
 
     # Example 1: Chat with a specific video
-    sample_video_id_for_chat = "test_video_123" # Replace with an actual video ID in your DB
+    sample_video_id_for_chat = "eWiBLgxOcW0" # Replace with an actual video ID in your DB
     sample_query_specific = "What is the primary focus of this video?"
     print(f"\nQuerying specific video '{sample_video_id_for_chat}': '{sample_query_specific}'")
     response_specific = get_chatbot_response(sample_query_specific, sample_video_id_for_chat)

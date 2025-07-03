@@ -336,7 +336,7 @@ if __name__ == "__main__":
     # via your FastAPI '/transcript/{video_id}' endpoint.
     # If you don't have one, the chatbot will only rely on general knowledge (if any)
     # or will state it can't find info.
-    test_video_id = "test_video_123" # <--- REPLACE WITH A REAL VIDEO ID FROM YOUR DB
+    test_video_id = "eWiBLgxOcW0" # <--- REPLACE WITH A REAL VIDEO ID FROM YOUR DB
 
     # --- Test 1: Chatting with a specific video context and new session ---
     print(f"\n--- Starting NEW chat session about video ID: {test_video_id} ---")

@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, OperationFailure
@@ -13,7 +13,8 @@ from pymongo.errors import ConnectionFailure, OperationFailure
 # Import functions from other modules
 from utils import extract_video_id, fetch_transcript, textify
 from genai import generate_description_with_gemini # Renamed for clarity
-from vector_db import embed_and_store_transcript, vector_store # Import both
+# Import embed_and_store_transcript and vector_store
+from vector_db import embed_and_store_transcript, vector_store
 from chatBot import get_chatbot_response # Import the chatbot function
 
 from historyChatBotWithStorage import (
@@ -21,6 +22,8 @@ from historyChatBotWithStorage import (
     get_history_chatbot_response_with_storage,
     get_chat_history_from_db # For retrieving full history if needed by frontend
 )
+# Import the new timestamp decider function
+from timeStampDecider import get_timestamps_for_topic
 
 load_dotenv()
 
@@ -64,6 +67,20 @@ class ChatQuery(BaseModel):
     query: str
     video_id: Optional[str] = None # Optional: if you want to limit search to a specific video
 
+class ChatSessionCreation(BaseModel):
+    video_id: Optional[str] = None # Optional: if starting a chat specific to a video
+    user_id: str = "1" # Default user_id for now
+
+class ChatQueryWithSession(BaseModel):
+    query: str
+    session_id: str
+    video_id: Optional[str] = None # Optional: to ensure context is maintained
+    user_id: str = "1" # Default user_id for now
+
+class TimestampQuery(BaseModel):
+    query: str
+    video_id: str # Video ID is mandatory for timestamp queries
+
 # --- FastAPI Endpoints ---
 
 @app.get("/")
@@ -95,7 +112,7 @@ async def submit_video_endpoint(video_submission: VideoSubmission):
             "video_id": video_id,
             "url": str(video_submission.url),
             "submitted_at": datetime.utcnow(),
-            "transcript": None, # Raw transcript data
+            "transcript": None, # Raw transcript data (list of dicts with text, start, duration)
             "transcript_text": None, # Plain text transcript
             "description": { # Placeholder, will be updated with detailed description
                 "title": None,
@@ -124,31 +141,33 @@ async def get_transcript_endpoint(video_id: str):
     if not video_doc:
         raise HTTPException(status_code=404, detail="Video not found.")
 
-    # If transcript_text exists, return it. Check if embeddings are also present.
-    if video_doc.get("transcript_text"):
+    # If transcript_text exists, check if embeddings are also present.
+    # We now also check for 'transcript' (the list of dicts) for re-embedding.
+    if video_doc.get("transcript_text") and video_doc.get("transcript"):
         print(f"Transcript already exists for {video_id}.")
         # Basic check to see if any chunk for this video_id exists in the embeddings collection
         # This helps re-embed if the embeddings collection was cleared or not populated previously
         if vector_store and not vector_store.collection.find_one({"video_id": video_id}):
              print(f"Re-embedding existing transcript for {video_id} as it's not in vector store.")
-             embed_and_store_transcript(video_id, video_doc["transcript_text"])
+             # Pass the full transcript list for re-embedding
+             embed_and_store_transcript(video_id, video_doc["transcript"])
         return {"video_id": video_id, "transcript_text": video_doc["transcript_text"]}
 
-    # If transcript_text does not exist, fetch and process it
+    # If transcript_text or transcript (list of dicts) does not exist, fetch and process it
     try:
         print(f"Fetching transcript for {video_id}...")
-        transcript_list = fetch_transcript(video_id)
-        transcript_text = textify(transcript_list)
+        transcript_list = fetch_transcript(video_id) # This returns list of dicts with text, start, duration
+        transcript_text = textify(transcript_list) # This returns just the concatenated text
 
         # Generate richer description using the full transcript
         print(f"Generating detailed description for {video_id}...")
         generated_description_data = generate_description_with_gemini(transcript_text)
 
-        # Update MongoDB document with full transcript and generated description
+        # Update MongoDB document with full transcript (list of dicts) and generated description
         videos_collection.update_one(
             {"video_id": video_id},
             {"$set": {
-                "transcript": transcript_list, # Store full transcript object if needed
+                "transcript": transcript_list, # Store full transcript object (list of dicts)
                 "transcript_text": transcript_text,
                 "description.title": generated_description_data.get("title"),
                 "description.keywords": generated_description_data.get("keywords", []),
@@ -163,7 +182,8 @@ async def get_transcript_endpoint(video_id: str):
         # --- Trigger Embedding and Storage in Vector DB ---
         if vector_store: # Ensure vector_store is initialized
             print(f"Embedding and storing transcript for {video_id} in vector database...")
-            embed_and_store_transcript(video_id, transcript_text)
+            # Pass the transcript_list (list of dicts) to embed_and_store_transcript
+            embed_and_store_transcript(video_id, transcript_list)
         else:
             print("Warning: Vector store not initialized. Transcript not embedded.")
             raise HTTPException(status_code=500, detail="Vector database not available for embedding.")
@@ -202,20 +222,6 @@ async def chat_endpoint(chat_query: ChatQuery):
         print(f"Error in chat endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred during chat: {e}")
 
-
-
-class ChatSessionCreation(BaseModel):
-    video_id: Optional[str] = None # Optional: if starting a chat specific to a video
-    user_id: str = "1" # Default user_id for now
-
-class ChatQueryWithSession(BaseModel):
-    query: str
-    session_id: str
-    video_id: Optional[str] = None # Optional: to ensure context is maintained
-    user_id: str = "1" # Default user_id for now
-
-
-# --- Add these FastAPI Endpoints to main.py ---
 
 @app.post("/chat/start_session")
 async def start_chat_session_endpoint(session_creation: ChatSessionCreation):
@@ -274,8 +280,25 @@ async def get_chat_session_history_endpoint(session_id: str):
         print(f"Error retrieving chat history: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve chat history: {e}")
 
+@app.post("/get_timestamps")
+async def get_timestamps_endpoint(timestamp_query: TimestampQuery):
+    """
+    Endpoint to retrieve timestamps for a specific topic in a video.
+    """
+    try:
+        timestamps = await get_timestamps_for_topic(
+            query_text=timestamp_query.query,
+            video_id=timestamp_query.video_id
+        )
+        if not timestamps:
+            return {"message": "No relevant timestamps found for your query.", "timestamps": []}
+        return {"message": "Timestamps retrieved successfully.", "timestamps": timestamps}
+    except Exception as e:
+        print(f"Error in get_timestamps endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve timestamps: {e}")
+
+
 # This block ensures the FastAPI app runs when the script is executed directly
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="localhost", port=8000)
-
