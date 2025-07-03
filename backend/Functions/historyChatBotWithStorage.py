@@ -16,7 +16,7 @@ from pymongo.errors import ConnectionFailure, OperationFailure
 
 # Import the vector_store from vector_db.py
 # This assumes vector_db.py correctly initializes `vector_store`
-from vector_db import vector_store
+from backend.Helpers.vector_db import vector_store
 
 load_dotenv()
 

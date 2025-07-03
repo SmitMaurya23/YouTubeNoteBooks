@@ -11,19 +11,20 @@ from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, OperationFailure
 
 # Import functions from other modules
-from utils import extract_video_id, fetch_transcript, textify
-from genai import generate_description_with_gemini # Renamed for clarity
-# Import embed_and_store_transcript and vector_store
-from vector_db import embed_and_store_transcript, vector_store
-from chatBot import get_chatbot_response # Import the chatbot function
+from backend.Helpers.utils import extract_video_id, fetch_transcript, textify
+from backend.Helpers.vector_db import embed_and_store_transcript, vector_store
 
-from historyChatBotWithStorage import (
+from backend.Functions.genai import generate_description_with_gemini # Renamed for clarity
+from backend.Functions.chatBot import get_chatbot_response # Import the chatbot function
+from backend.Functions.timeStampDecider import get_timestamps_for_topic
+
+from backend.Functions.historyChatBotWithStorage import (
     create_new_chat_session,
     get_history_chatbot_response_with_storage,
     get_chat_history_from_db # For retrieving full history if needed by frontend
 )
 # Import the new timestamp decider function
-from timeStampDecider import get_timestamps_for_topic
+
 
 load_dotenv()
 
