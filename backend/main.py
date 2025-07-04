@@ -35,7 +35,7 @@ app = FastAPI()
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"], # Adjust as needed for your frontend
+    allow_origins=["http://localhost:5173","https://youtubenotebooks.onrender.com"], # Adjust as needed for your frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
