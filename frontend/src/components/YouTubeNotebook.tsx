@@ -70,10 +70,8 @@ const YouTubeNoteBook: React.FC<YouTubeNoteBookProps> = ({ videoId, notebookId, 
   const [timestampQuery, setTimestampQuery] = useState<string>('');
   const [timestamps, setTimestamps] = useState<TimestampEntry[]>([]);
   const [timestampLoading, setTimestampLoading] = useState<boolean>(false);
-  const [timestampError, setTimestampError] = useState<string | null>(null);
   const [videoTitle, setVideoTitle] = useState<string>('Loading Video Title...');
-  const [playerReady, setPlayerReady] = useState<boolean>(false);
-  const [showTimestamps, setShowTimestamps] = useState(true);
+
 
 
   const playerRef = useRef<any>(null);
@@ -105,7 +103,6 @@ const YouTubeNoteBook: React.FC<YouTubeNoteBookProps> = ({ videoId, notebookId, 
           events: {
             onReady: (event: any) => {
               console.log('YouTube Player Ready:', event.target);
-              setPlayerReady(true);
             },
             onError: (event: any) => {
               console.error('YouTube Player Error:', event.data);
@@ -161,7 +158,6 @@ const YouTubeNoteBook: React.FC<YouTubeNoteBookProps> = ({ videoId, notebookId, 
     if (!timestampQuery.trim()) return;
 
     setTimestampLoading(true);
-    setTimestampError(null);
     setTimestamps([]);
 
     try {
@@ -171,11 +167,11 @@ const YouTubeNoteBook: React.FC<YouTubeNoteBookProps> = ({ videoId, notebookId, 
       );
       setTimestamps(response.data.timestamps);
       if (response.data.timestamps.length === 0) {
-        setTimestampError('No relevant timestamps found.');
+       // setTimestampError('No relevant timestamps found.');
       }
     } catch (err) {
-      const axiosError = err as AxiosError<{ detail: string }>;
-      setTimestampError(axiosError.response?.data?.detail || 'Failed to fetch timestamps.');
+     // const axiosError = err as AxiosError<{ detail: string }>;
+     // setTimestampError(axiosError.response?.data?.detail || 'Failed to fetch timestamps.');
       console.error('Error fetching timestamps:', err);
     } finally {
       setTimestampLoading(false);
@@ -262,7 +258,7 @@ function handleTimestampClick(timestamp: string) {
   };
 
   // NEW: Callback from ChatBotComponent after a chat response
-  const handleChatResponse = (response: string, newSessionId: string) => {
+  const handleChatResponse = (newSessionId: string) => {
     // Update the current active session ID (important if a new session was just created)
     setCurrentChatSessionId(newSessionId);
 
