@@ -35,7 +35,7 @@ This project is built with a powerful and modern technology stack:
 * **MongoDB Atlas Vector Search:** Utilized for efficient similarity search over vector embeddings of video transcripts, enabling the chatbot to retrieve highly relevant content chunks for contextual understanding.
 
 **Artificial Intelligence & Machine Learning:**
-* **Google Gemini 1.5 Flash:** A powerful, multimodal large language model from Google AI, used for generating video descriptions, answering chatbot queries, and extracting timestamp information. Its speed and efficiency are key for real-time interactions.
+* **Google Gemini 1.5 or 2.0 Flash:** A powerful, multimodal large language model from Google AI, used for generating video descriptions, answering chatbot queries, and extracting timestamp information. Its speed and efficiency are key for real-time interactions.
 * **Google Text Embedding Models (e.g., `text-embedding-004`):** Employed to convert video transcripts and user queries into high-dimensional numerical vectors, crucial for enabling semantic search capabilities with MongoDB Atlas Vector Search.
 * **LangChain:** A framework for developing applications powered by language models, used to orchestrate the interactions between LLMs, vector stores, and memory (chat history).
 
@@ -75,5 +75,5 @@ To run this project locally, follow these steps:
 ### 1. Clone the Repository
 
 ```bash
-git clone [https://github.com/your-username/your-repo-name.git](https://github.com/your-username/your-repo-name.git)
-cd your-repo-name
+git clone https://github.com/SmitMaurya23/YouTubeNoteBooks.git
+cd YouTubeNoteBooks
