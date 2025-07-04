@@ -3,16 +3,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios, { AxiosError } from 'axios';
 
 interface ChatMessage {
-  role: 'user' | 'model';
-  text: string;
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 interface ChatBotComponentProps {
   videoId: string;
-  notebookId: string; 
-  currentSessionId: string | null; 
-  onChatResponse: (response: string, newSessionId: string) => void; 
-  userId: string; 
+  notebookId: string;
+  currentSessionId: string | null;
+  onChatResponse: (response: string, newSessionId: string) => void;
+  userId: string;
 }
 
 const ChatBotComponent: React.FC<ChatBotComponentProps> = ({
@@ -26,8 +26,6 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = ({
   const [input, setInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  // Remove the internal sessionId state, as currentSessionId prop will be the source of truth
-  // const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom of chat messages
@@ -50,14 +48,14 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = ({
         } catch (err) {
           const errorMessage = (err as AxiosError<{ detail: string }>).response?.data?.detail || 'Failed to load chat history.';
           setError(errorMessage);
-          setMessages([{ role: 'model', text: `Error loading history: ${errorMessage}` }]);
+          setMessages([{ role: 'assistant', content: `Error loading history: ${errorMessage}` }]);
           console.error("Error loading chat history:", err);
         } finally {
           setIsLoading(false);
         }
       } else {
         // If currentSessionId is null, it's a new chat, so clear messages and set initial greeting
-        setMessages([{ role: 'model', text: "Hello! How can I help you with this video?" }]);
+        setMessages([{ role: 'assistant', content: "Hello! How can I help you with this video?" }]);
         setError(null);
       }
     };
@@ -74,7 +72,7 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = ({
     e.preventDefault();
     if (!input.trim() || isLoading) return; // Removed !sessionId check
 
-    const newUserMessage: ChatMessage = { role: 'user', text: input.trim() };
+    const newUserMessage: ChatMessage = { role: 'user', content: input.trim() };
     setMessages((prevMessages) => [...prevMessages, newUserMessage]);
     setInput('');
     setIsLoading(true);
@@ -89,7 +87,7 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = ({
         notebook_id: string;
         session_id?: string; // Optional session_id for new/existing chat
       } = {
-        query: newUserMessage.text,
+        query: newUserMessage.content,
         video_id: videoId,
         user_id: userId,
         notebook_id: notebookId,
@@ -105,7 +103,7 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = ({
         payload
       );
 
-      const modelResponse: ChatMessage = { role: 'model', text: response.data.answer };
+      const modelResponse: ChatMessage = { role: 'assistant', content: response.data.answer };
       setMessages((prevMessages) => [...prevMessages, modelResponse]);
 
       // The backend will always return the session_id (either the existing one, or a new one)
@@ -115,7 +113,7 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = ({
     } catch (err) {
       const errorMessage = (err as AxiosError<{ detail: string }>).response?.data?.detail || 'Failed to get response from chatbot.';
       setError(errorMessage);
-      setMessages((prevMessages) => [...prevMessages, { role: 'model', text: `Error: ${errorMessage}` }]);
+      setMessages((prevMessages) => [...prevMessages, { role: 'assistant', content: `Error: ${errorMessage}` }]);
       console.error("Error sending message:", err);
     } finally {
       setIsLoading(false);
@@ -123,9 +121,7 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 flex flex-col h-[600px] mt-4">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4 border-b pb-3">Chat with Video</h2>
-
+    <div className="bg-white rounded-lg shadow-lg p-6 flex flex-col h-full mt-4 text-xs">
       {error && (
         <div className="text-red-500 p-3 bg-red-100 rounded-md mb-4">
           <p>{error}</p>
@@ -155,7 +151,7 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = ({
                       : 'bg-gray-200 text-gray-800 rounded-bl-none'
                   }`}
                 >
-                  {msg.text}
+                  {msg.content}
                 </div>
               </div>
             ))}
@@ -209,7 +205,7 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = ({
             </button>
           </form>
         </>
-      ) : null} {/* If not loading and no messages, could be an error or not yet initialized */}
+      ) : null}
     </div>
   );
 };

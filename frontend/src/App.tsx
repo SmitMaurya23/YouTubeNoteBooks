@@ -1,10 +1,10 @@
-// App.tsx
+// App.tsx (No changes needed in App.tsx for this UI overhaul)
 import { useState, useEffect } from 'react';
 import axios, { AxiosError } from 'axios';
 import Navbar from './components/Navbar';
 import YouTubeNoteBook from './components/YouTubeNotebook';
-import LoginModal from './components/LoginModal'; // New import
-import SignUpModal from './components/SignupModal'; // New import
+import LoginModal from './components/LoginModal';
+import SignUpModal from './components/SignupModal';
 import Home from './components/Home';
 import './App.css';
 
@@ -116,9 +116,9 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans antialiased">
-      <Navbar userName={userName} onLogout={handleLogout} onLoginClick={() => setShowLoginModal(true)} />
+      <Navbar userName={userName} notebookId={currentNotebookId} onLogout={handleLogout} onLoginClick={() => setShowLoginModal(true) }  onBack={handleBackToHome} />
 
-      <main className="py-8">
+      <main className="py-1">
         {!userId ? (
           <>
             {showLoginModal && (
@@ -134,7 +134,7 @@ function App() {
                 isOpen={showSignUpModal}
                 onClose={() => setShowSignUpModal(false)}
                 onSignUpSuccess={handleSignUpSuccess}
-                onSwitchToLogin={() => { setShowSignUpModal(false); setShowLoginModal(true); }} 
+                onSwitchToLogin={() => { setShowSignUpModal(false); setShowLoginModal(true); }}
               />
             )}
             {/* Optionally show a message if not logged in and modals are closed */}
@@ -145,7 +145,7 @@ function App() {
         ) : (
           // User is logged in
           currentNotebookId && currentVideoId ? (
-            <YouTubeNoteBook videoId={currentVideoId} notebookId={currentNotebookId} onBack={handleBackToHome} userId={userId} />
+            <YouTubeNoteBook videoId={currentVideoId} notebookId={currentNotebookId}  userId={userId}  />
           ) : (
             <Home
               userId={userId}

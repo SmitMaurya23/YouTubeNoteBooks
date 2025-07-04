@@ -27,7 +27,8 @@ const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
   onSelectChatSession,
 }) => {
   return (
-    <div className="w-1/4 bg-white p-4 rounded-lg shadow-lg mr-4 overflow-y-auto max-h-[80vh] min-w-[200px]">
+    <div className="bg-white p-4 rounded-lg shadow-lg h-[600px] overflow-y-auto custom-scrollbar">
+
       <h3 className="text-xl font-bold text-gray-800 mb-4">Chat History</h3>
       <button
         onClick={onStartNewChatSession}
@@ -51,10 +52,7 @@ const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
                   : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
               }`}
             >
-              <p className="font-medium truncate">{session.first_prompt}</p>
-              <p className="text-xs text-gray-500">
-                {new Date(session.created_at).toLocaleDateString()}
-              </p>
+              <p className="text-xs truncate">{session.first_prompt}</p>
             </button>
           </li>
         ))}

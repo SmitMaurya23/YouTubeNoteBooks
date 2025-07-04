@@ -60,6 +60,7 @@ try:
     videos_collection = db["videos"]
     users_collection = db["users"] # New collection for users
     notebooks_collection = db["notebooks"] # New collection for notebooks
+    chat_sessions_collection = db["chat_sessions"] # New collection for chat sessions
     print(f"Connected to MongoDB database: {db.name}")
 except (ConnectionFailure, OperationFailure) as e:
     print(f"MongoDB connection failed: {e}")
@@ -467,11 +468,12 @@ async def chat_endpoint(chat_interaction: ChatInteraction):
             new_session_id = create_new_chat_session(
                 video_id=chat_interaction.video_id,
                 user_id=chat_interaction.user_id,
-                notebook_id=chat_interaction.notebook_id # Pass notebook_id to link
+                notebook_id=chat_interaction.notebook_id,# Pass notebook_id to link
+                first_user_prompt=chat_interaction.query
             )
             current_session_id = new_session_id
             print(f"New session created with ID: {current_session_id}")
-
+        
         # CORRECTED LINE HERE: Unpack the tuple returned by get_history_chatbot_response_with_storage
         ai_response_text, _ = get_history_chatbot_response_with_storage(
             query_text=chat_interaction.query,
