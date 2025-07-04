@@ -28,7 +28,7 @@ const Navbar: React.FC<NavbarProps> = ({ userName, notebookId, onLogout, onLogin
       setTitleError(null); // Clear previous errors
       try {
         const notebookResponse = await axios.get<{ notebook: { notebook_title: string | null } }>(
-          `http://localhost:8000/notebook/${notebookId}`
+          `/api/notebook/${notebookId}`
         );
         setNotebookTitle(notebookResponse.data.notebook.notebook_title);
       } catch (err) {

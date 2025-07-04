@@ -70,14 +70,14 @@ function App() {
 
     try {
       // Step 1: Submit video to get video_id
-      const videoResponse = await axios.post<VideoSubmissionResponse>('http://localhost:8000/submit-video', { url });
+      const videoResponse = await axios.post<VideoSubmissionResponse>('/api/submit-video', { url });
       const newVideoId = videoResponse.data.video_id;
       setCurrentVideoId(newVideoId);
 
       // Step 2: Create a new notebook entry with this video_id
       if (userId) {
         const notebookCreateResponse = await axios.post<{ message: string; notebook_id: string }>(
-          'http://localhost:8000/notebooks',
+          'api/notebooks',
           { user_id: userId, video_id: newVideoId, notebook_title: notebookTitle }
         );
         setCurrentNotebookId(notebookCreateResponse.data.notebook_id);

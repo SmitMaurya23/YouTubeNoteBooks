@@ -43,7 +43,7 @@ const Home: React.FC<HomeProps> = ({
       setLoadingNotebooks(true);
       setErrorNotebooks(null);
       try {
-        const response = await axios.get<{ notebooks: Notebook[] }>(`http://localhost:8000/notebooks/${userId}`);
+        const response = await axios.get<{ notebooks: Notebook[] }>(`/api/notebooks/${userId}`);
         setNotebooks(response.data.notebooks);
       } catch (err: any) {
         setErrorNotebooks(err.response?.data?.detail || 'Failed to fetch notebooks');

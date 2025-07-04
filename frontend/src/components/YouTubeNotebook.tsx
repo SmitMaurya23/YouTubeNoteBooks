@@ -125,7 +125,7 @@ const YouTubeNoteBook: React.FC<YouTubeNoteBookProps> = ({ videoId, notebookId, 
   useEffect(() => {
     const fetchVideoDetails = async () => {
       try {
-        const response = await axios.get<VideoDetailsResponse>(`http://localhost:8000/video_details/${videoId}`);
+        const response = await axios.get<VideoDetailsResponse>(`/api/video_details/${videoId}`);
         setVideoTitle(response.data.description.title || 'Video Unavailable');
         // Pre-fetch description so it's ready when user switches
         setDescription(response.data.description);
@@ -143,7 +143,7 @@ const YouTubeNoteBook: React.FC<YouTubeNoteBookProps> = ({ videoId, notebookId, 
     setDescriptionLoading(true);
     setDescriptionError(null);
     try {
-      const response = await axios.get<VideoDetailsResponse>(`http://localhost:8000/video_details/${videoId}`);
+      const response = await axios.get<VideoDetailsResponse>(`/api/video_details/${videoId}`);
       setDescription(response.data.description);
     } catch (err) {
       setDescriptionError('Failed to fetch description');
@@ -162,7 +162,7 @@ const YouTubeNoteBook: React.FC<YouTubeNoteBookProps> = ({ videoId, notebookId, 
 
     try {
       const response = await axios.post<TimestampResponse>(
-        'http://localhost:8000/get_timestamps',
+        '/api/get_timestamps',
         { query: timestampQuery, video_id: videoId }
       );
       setTimestamps(response.data.timestamps);
@@ -206,7 +206,7 @@ function handleTimestampClick(timestamp: string) {
       try {
         // Fetch summaries for all sessions linked to this notebook
         const summariesResponse = await axios.get<ChatSessionSummary[]>(
-          `http://localhost:8000/notebook/${notebookId}/chat_sessions`
+          `/api/notebook/${notebookId}/chat_sessions`
         );
         // Sort by created_at in descending order to get most recent first, then reverse for display
         // Assuming 'created_at' is an ISO string and can be compared directly or converted to Date objects
@@ -215,7 +215,7 @@ function handleTimestampClick(timestamp: string) {
 
         // Fetch notebook details to get the actual latest_session_id
         const notebookResponse = await axios.get<{ notebook: { latest_session_id: string | null } }>(
-            `http://localhost:8000/notebook/${notebookId}`
+            `/api/notebook/${notebookId}`
         );
         const latestId = notebookResponse.data.notebook.latest_session_id;
 
@@ -267,7 +267,7 @@ function handleTimestampClick(timestamp: string) {
     const reFetchChatSessionSummaries = async () => {
       try {
         const response = await axios.get<ChatSessionSummary[]>(
-          `http://localhost:8000/notebook/${notebookId}/chat_sessions`
+          `/api/notebook/${notebookId}/chat_sessions`
         );
         // Sort again after re-fetching
         const sortedSummaries = response.data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());

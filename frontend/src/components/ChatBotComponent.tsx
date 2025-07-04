@@ -41,7 +41,7 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = ({
         setError(null);
         try {
           const response = await axios.get<{ session_id: string, history: ChatMessage[] }>(
-            `http://localhost:8000/chat/history/${currentSessionId}`
+            `/api/chat/history/${currentSessionId}`
           );
           setMessages(response.data.history);
           console.log(`Loaded history for session: ${currentSessionId}`);
@@ -99,7 +99,7 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = ({
       }
 
       const response = await axios.post<{ answer: string; session_id: string }>(
-        'http://localhost:8000/chat', // ALWAYS use this single endpoint
+        '/api/chat', // ALWAYS use this single endpoint
         payload
       );
 
