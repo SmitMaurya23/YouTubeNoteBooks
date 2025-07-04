@@ -492,6 +492,12 @@ async def chat_endpoint(chat_interaction: ChatInteraction):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="localhost", port=8000)
+    import os # You might already have this imported at the top
 
+    # Get the port from the environment variable (Render sets this), default to 8000 for local dev
+    port = int(os.getenv("PORT", 8000))
+    # Get the host from the environment variable, default to 0.0.0.0 for Render and local binding
+    host = os.getenv("HOST", "0.0.0.0")
+
+    uvicorn.run(app, host=host, port=port)
 
