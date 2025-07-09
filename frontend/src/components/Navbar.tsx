@@ -1,6 +1,7 @@
 // src/components/Navbar.tsx
 import React, { useState, useEffect } from 'react';
 import axios, { AxiosError } from 'axios'; // Import AxiosError
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL; 
 
 interface NavbarProps {
   userName: string | null;
@@ -28,7 +29,7 @@ const Navbar: React.FC<NavbarProps> = ({ userName, notebookId, onLogout, onLogin
       setTitleError(null); // Clear previous errors
       try {
         const notebookResponse = await axios.get<{ notebook: { notebook_title: string | null } }>(
-          `/api/notebook/${notebookId}`
+          `${API_BASE_URL}/notebook/${notebookId}`
         );
         setNotebookTitle(notebookResponse.data.notebook.notebook_title);
       } catch (err) {

@@ -1,5 +1,6 @@
 // src/components/LoginModal.tsx
 import React, { useState } from 'react';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL; 
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -19,7 +20,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
     setError(null);
     setLoading(true);
     try {
-      const response = await fetch('/api/login', {
+      const response = await fetch(`${API_BASE_URL}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

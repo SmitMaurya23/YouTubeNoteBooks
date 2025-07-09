@@ -4,6 +4,7 @@ import axios, { AxiosError } from 'axios';
 import VideoDescriptionComponent from './VideoDescriptionComponent';
 import ChatBotComponent from './ChatBotComponent';
 import ChatHistoryPanel from './ChatHistoryPanel';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL; 
 
 // Declare YouTube global object
 declare global {
@@ -125,7 +126,7 @@ const YouTubeNoteBook: React.FC<YouTubeNoteBookProps> = ({ videoId, notebookId, 
   useEffect(() => {
     const fetchVideoDetails = async () => {
       try {
-        const response = await axios.get<VideoDetailsResponse>(`/api/video_details/${videoId}`);
+        const response = await axios.get<VideoDetailsResponse>(`${API_BASE_URL}/video_details/${videoId}`);
         setVideoTitle(response.data.description.title || 'Video Unavailable');
         // Pre-fetch description so it's ready when user switches
         setDescription(response.data.description);
@@ -143,7 +144,7 @@ const YouTubeNoteBook: React.FC<YouTubeNoteBookProps> = ({ videoId, notebookId, 
     setDescriptionLoading(true);
     setDescriptionError(null);
     try {
-      const response = await axios.get<VideoDetailsResponse>(`/api/video_details/${videoId}`);
+      const response = await axios.get<VideoDetailsResponse>(`${API_BASE_URL}/video_details/${videoId}`);
       setDescription(response.data.description);
     } catch (err) {
       setDescriptionError('Failed to fetch description');
@@ -162,7 +163,7 @@ const YouTubeNoteBook: React.FC<YouTubeNoteBookProps> = ({ videoId, notebookId, 
 
     try {
       const response = await axios.post<TimestampResponse>(
-        '/api/get_timestamps',
+        `${API_BASE_URL}/get_timestamps`,
         { query: timestampQuery, video_id: videoId }
       );
       setTimestamps(response.data.timestamps);
@@ -206,7 +207,7 @@ function handleTimestampClick(timestamp: string) {
       try {
         // Fetch summaries for all sessions linked to this notebook
         const summariesResponse = await axios.get<ChatSessionSummary[]>(
-          `/api/notebook/${notebookId}/chat_sessions`
+          `${API_BASE_URL}/notebook/${notebookId}/chat_sessions`
         );
         // Sort by created_at in descending order to get most recent first, then reverse for display
         // Assuming 'created_at' is an ISO string and can be compared directly or converted to Date objects
@@ -215,7 +216,7 @@ function handleTimestampClick(timestamp: string) {
 
         // Fetch notebook details to get the actual latest_session_id
         const notebookResponse = await axios.get<{ notebook: { latest_session_id: string | null } }>(
-            `/api/notebook/${notebookId}`
+            `${API_BASE_URL}/notebook/${notebookId}`
         );
         const latestId = notebookResponse.data.notebook.latest_session_id;
 
@@ -267,7 +268,7 @@ function handleTimestampClick(timestamp: string) {
     const reFetchChatSessionSummaries = async () => {
       try {
         const response = await axios.get<ChatSessionSummary[]>(
-          `/api/notebook/${notebookId}/chat_sessions`
+          `${API_BASE_URL}/notebook/${notebookId}/chat_sessions`
         );
         // Sort again after re-fetching
         const sortedSummaries = response.data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());

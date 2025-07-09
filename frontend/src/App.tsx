@@ -8,6 +8,8 @@ import SignUpModal from './components/SignupModal';
 import Home from './components/Home';
 import './App.css';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL; 
+
 interface VideoSubmissionResponse {
   message: string;
   video_id: string;
@@ -70,14 +72,14 @@ function App() {
 
     try {
       // Step 1: Submit video to get video_id
-      const videoResponse = await axios.post<VideoSubmissionResponse>('/api/submit-video', { url });
+      const videoResponse = await axios.post<VideoSubmissionResponse>(`${API_BASE_URL}/submit-video`, { url });
       const newVideoId = videoResponse.data.video_id;
       setCurrentVideoId(newVideoId);
 
       // Step 2: Create a new notebook entry with this video_id
       if (userId) {
         const notebookCreateResponse = await axios.post<{ message: string; notebook_id: string }>(
-          'api/notebooks',
+          '${API_BASE_URL}/notebooks',
           { user_id: userId, video_id: newVideoId, notebook_title: notebookTitle }
         );
         setCurrentNotebookId(notebookCreateResponse.data.notebook_id);

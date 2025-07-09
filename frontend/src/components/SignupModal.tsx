@@ -1,5 +1,6 @@
 // src/components/SignUpModal.tsx
 import React, { useState } from 'react';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL; 
 
 interface SignUpModalProps {
   isOpen: boolean;
@@ -20,7 +21,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({ isOpen, onClose, onSignUpSucc
     setError(null);
     setLoading(true);
     try {
-      const response = await fetch('/api/signup', {
+      const response = await fetch(`${API_BASE_URL}/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

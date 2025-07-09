@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import LinkSubmission from './LinkSubmission'; // Import LinkSubmission for new notebook creation
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL; 
 
 interface Notebook {
   _id: string;
@@ -43,7 +44,7 @@ const Home: React.FC<HomeProps> = ({
       setLoadingNotebooks(true);
       setErrorNotebooks(null);
       try {
-        const response = await axios.get<{ notebooks: Notebook[] }>(`/api/notebooks/${userId}`);
+        const response = await axios.get<{ notebooks: Notebook[] }>(`${API_BASE_URL}/notebooks/${userId}`);
         setNotebooks(response.data.notebooks);
       } catch (err: any) {
         setErrorNotebooks(err.response?.data?.detail || 'Failed to fetch notebooks');
