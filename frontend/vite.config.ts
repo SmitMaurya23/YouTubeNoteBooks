@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8000', // Backend server URL
+        target: 'https://youtubenotebooks.onrender.com', // Backend server URL
         changeOrigin: true,
         secure: false,
         // *** THIS IS THE KEY CHANGE ***
