@@ -51,10 +51,11 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
       <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+        <div className="text-yellow-200 text-2xl text-center bg-gradient-to-r from-blue-600 to-purple-700">Welcome to YouTubeNoteBooks!</div>
         <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Login to Your Account</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email" >
               Email
             </label>
             <input
@@ -65,6 +66,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
               required
               disabled={loading}
+              placeholder='Enter `user@gmail.com` if you want demo only'
             />
           </div>
           <div>
@@ -79,6 +81,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
               required
               disabled={loading}
+              placeholder='Enter `user` if you want demo only'
             />
           </div>
           {error && <p className="text-red-500 text-xs italic text-center">{error}</p>}
