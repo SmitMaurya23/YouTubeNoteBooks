@@ -8,10 +8,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://youtubenotebooks.onrender.com',// Backend server URL
+        target: 'https://youtubenotebooks.onrender.com', // Backend server URL
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path,
+        // *** THIS IS THE KEY CHANGE ***
+        rewrite: (path) => path.replace(/^\/api/, ''), // Removes '/api' from the start of the path
       },
     },
   },
