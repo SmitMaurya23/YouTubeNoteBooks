@@ -79,7 +79,7 @@ function App() {
       // Step 2: Create a new notebook entry with this video_id
       if (userId) {
         const notebookCreateResponse = await axios.post<{ message: string; notebook_id: string }>(
-          '${API_BASE_URL}/notebooks',
+          `${API_BASE_URL}/notebooks`,
           { user_id: userId, video_id: newVideoId, notebook_title: notebookTitle }
         );
         setCurrentNotebookId(notebookCreateResponse.data.notebook_id);

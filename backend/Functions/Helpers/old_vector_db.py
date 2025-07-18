@@ -1,4 +1,3 @@
-
 # backend/vector_db.py
 import os
 from dotenv import load_dotenv
@@ -8,11 +7,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings # Import the base Embeddings class
 from typing import List, Dict
-
-# NEW IMPORTS FOR EXPLICIT AUTHENTICATION
-import json
-import tempfile
-import traceback # For detailed error logging
 
 # Import native Vertex AI SDK components
 import vertexai
@@ -29,34 +23,8 @@ if not GOOGLE_CLOUD_PROJECT:
 if not GOOGLE_CLOUD_LOCATION:
     raise ValueError("GOOGLE_CLOUD_LOCATION not set in .env file.")
 
-# --- NEW BLOCK: Explicitly handle GOOGLE_APPLICATION_CREDENTIALS for Render ---
-# This block reads the service account key JSON content from an environment variable,
-# writes it to a temporary file, and then sets the GOOGLE_APPLICATION_CREDENTIALS
-# environment variable to point to this file. This forces the Vertex AI SDK to
-# use these specific credentials for authentication, bypassing potential implicit
-# authentication issues in deployment environments.
-service_account_json_content = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
-if service_account_json_content:
-    try:
-        # tempfile.NamedTemporaryFile creates a unique file and ensures it's cleaned up
-        # We set delete=False initially because we need the file to exist after the 'with' block
-        # The file will be cleaned up on process exit or when manually unlinked.
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, encoding='utf-8') as temp_creds_file:
-            temp_creds_file.write(service_account_json_content)
-            temp_creds_path = temp_creds_file.name
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_creds_path
-        print(f"GOOGLE_APPLICATION_CREDENTIALS set to temporary file: {temp_creds_path}")
-    except Exception as e:
-        print(f"Error writing temporary credentials file: {e}")
-        # We don't re-raise here to allow the process to continue and potentially
-        # fall back to implicit authentication, though that's what we're trying to fix.
-else:
-    print("GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable not found. Relying on implicit authentication.")
-
 # Initialize Vertex AI for the session
 try:
-    # This vertexai.init will now prioritize the GOOGLE_APPLICATION_CREDENTIALS
-    # environment variable if it has been successfully set in the new block above.
     vertexai.init(project=GOOGLE_CLOUD_PROJECT, location=GOOGLE_CLOUD_LOCATION)
     print(f"Vertex AI initialized for project: {GOOGLE_CLOUD_PROJECT}, location: {GOOGLE_CLOUD_LOCATION}")
 except Exception as e:
@@ -71,13 +39,9 @@ class VertexAIEmbeddingsNative(Embeddings):
         self.model_name = model_name
         self.client = None
         try:
-            # This will use the authenticated context set by vertexai.init(),
-            # which now (hopefully) includes the explicit service account credentials.
             self.client = TextEmbeddingModel.from_pretrained(self.model_name)
             print(f"Native Vertex AI TextEmbeddingModel '{self.model_name}' loaded successfully.")
         except Exception as e:
-            # NEW: Print full traceback for better debugging on deployment logs
-            traceback.print_exc()
             raise ValueError(f"Failed to load native Vertex AI embedding model '{self.model_name}': {e}")
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
@@ -172,7 +136,7 @@ def embed_and_store_transcript(video_id: str, transcript_list: List[Dict]) -> bo
     Args:
         video_id: The ID of the YouTube video.
         transcript_list: The list of transcript entries from utils.fetch_transcript,
-                               e.g., [{"text": "...", "start": 0.0, "duration": 5.0}, ...]
+                         e.g., [{"text": "...", "start": 0.0, "duration": 5.0}, ...]
     """
     if not vector_store:
         print("Vector store not initialized. Cannot embed and store transcript.")
