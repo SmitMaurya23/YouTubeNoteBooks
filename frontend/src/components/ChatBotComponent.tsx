@@ -12,7 +12,7 @@ interface ChatBotComponentProps {
   videoId: string;
   notebookId: string;
   currentSessionId: string | null;
-  onChatResponse: (response: string, newSessionId: string) => void;
+  onChatResponse: (newSessionId: string) => void;
   userId: string;
 }
 
@@ -109,7 +109,7 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = ({
 
       // The backend will always return the session_id (either the existing one, or a new one)
       // Call the parent callback to update its state with the correct session ID
-      onChatResponse(response.data.answer, response.data.session_id);
+      onChatResponse(response.data.session_id);
 
     } catch (err) {
       const errorMessage = (err as AxiosError<{ detail: string }>).response?.data?.detail || 'Failed to get response from chatbot.';

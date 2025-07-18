@@ -219,6 +219,7 @@ function handleTimestampClick(timestamp: string) {
             `${API_BASE_URL}/notebook/${notebookId}`
         );
         const latestId = notebookResponse.data.notebook.latest_session_id;
+        console.log("Fetched latest session ID from notebook:", latestId);
 
         if (latestId) {
           setCurrentChatSessionId(latestId);
@@ -261,7 +262,9 @@ function handleTimestampClick(timestamp: string) {
   // NEW: Callback from ChatBotComponent after a chat response
   const handleChatResponse = (newSessionId: string) => {
     // Update the current active session ID (important if a new session was just created)
-    setCurrentChatSessionId(newSessionId);
+    if (newSessionId && newSessionId !== currentChatSessionId) {
+      setCurrentChatSessionId(newSessionId);
+    }
 
     // Re-fetch chat session summaries to ensure the list is up-to-date
     // This is crucial if a new session was just created and its 'first_prompt' needs to appear.
