@@ -4,8 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth_router,chat_router, notebook_router, video_router
 
 app=FastAPI(
-    title="YouTube Notebook API"
-    description="API for processing YouTube videos, generating content, and managing chat sessions."
+    title="YouTube Notebook API",
+    description="API for processing YouTube videos, generating content, and managing chat sessions.",
     version="1.0.0"
 )
 
