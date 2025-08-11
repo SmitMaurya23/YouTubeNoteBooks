@@ -1,0 +1,22 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115.14",
+    "google-cloud-aiplatform>=1.71.1",
+    "langchain>=0.3.26",
+    "langchain-community>=0.3.26",
+    "langchain-core>=0.3.66",
+    "langchain-google-genai>=2.1.6",
+    "langchain-google-vertexai>=2.0.9",
+    "langchain-mongodb>=0.6.2",
+    "langchain-ollama>=0.3.3",
+    "ollama>=0.5.1",
+    "pymongo>=4.13.2",
+    "uvicorn>=0.35.0",
+    "vertexai>=1.71.1",
+    "youtube-transcript-api>=1.1.0",
+]

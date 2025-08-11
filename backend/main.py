@@ -17,7 +17,6 @@ from Functions.Helpers.vector_db import embed_and_store_transcript, vector_store
 from Functions.genai import generate_description_with_gemini # Renamed for clarity
 from Functions.chatBot import get_chatbot_response # Import the chatbot function
 from Functions.timeStampDecider import get_timestamps_for_topic
-
 from Functions.historyChatBotWithStorage import (
     create_new_chat_session,
     get_history_chatbot_response_with_storage,
@@ -57,9 +56,9 @@ try:
     mongo_client = MongoClient(MONGO_URI)
     db = mongo_client["youtube_notebook"]
     videos_collection = db["videos"]
-    users_collection = db["users"] # New collection for users
-    notebooks_collection = db["notebooks"] # New collection for notebooks
-    chat_sessions_collection = db["chat_sessions"] # New collection for chat sessions
+    users_collection = db["users"]
+    notebooks_collection = db["notebooks"]
+    chat_sessions_collection = db["chat_sessions"]
     print(f"Connected to MongoDB database: {db.name}")
 except (ConnectionFailure, OperationFailure) as e:
     print(f"MongoDB connection failed: {e}")
@@ -124,7 +123,7 @@ class ChatSessionSummary(BaseModel):
 class ChatInteraction(BaseModel):
     query: str
     video_id: str
-    user_id: str 
+    user_id: str
     notebook_id: str # The notebook this chat session belongs to
     session_id: Optional[str] = None # THIS IS KEY: session_id is now optional
 
@@ -137,8 +136,8 @@ class ChatResponse(BaseModel):
 
 @app.get("/")
 async def read_root():
-    """Root endpoint for the YouTube Notebot API."""
-    return {"message": "Welcome to the YouTube Notebot API!"}
+    """Root endpoint for the YouTube Notebook API."""
+    return {"message": "Welcome to the YouTube Notebook API!"}
 
 @app.post("/submit-video")
 async def submit_video_endpoint(video_submission: VideoSubmission):
@@ -368,7 +367,6 @@ async def login_endpoint(user_data: UserLogin):
     return {"message": "Login successful!", "user_id": str(user_doc["_id"]), "user_name": user_doc["user_name"]}
 # This block ensures the FastAPI app runs when the script is executed directly
 # main.py (add these new endpoints)
-
 @app.post("/notebooks")
 async def create_notebook_endpoint(notebook_data: NotebookCreate):
     """
@@ -440,20 +438,19 @@ async def get_notebook_chat_sessions_summaries_endpoint(notebook_id: str):
             raise HTTPException(status_code=404, detail="Notebook not found.")
 
         session_ids_in_notebook = notebook_doc.get("session_id_list", [])
-        
+
         # Call the function from historyChatBotWithStorage to get summaries for these IDs
         summaries = get_notebook_chat_sessions_summaries(session_ids_in_notebook)
 
         # Ensure the latest session is explicitly identified or handled by frontend
         # (The frontend will use the latest_session_id from the notebook directly)
-        
+
         return summaries
     except HTTPException:
         raise
     except Exception as e:
         print(f"Error getting chat session summaries for notebook {notebook_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve chat sessions: {e}")
-    
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -472,7 +469,7 @@ async def chat_endpoint(chat_interaction: ChatInteraction):
             )
             current_session_id = new_session_id
             print(f"New session created with ID: {current_session_id}")
-        
+
         # CORRECTED LINE HERE: Unpack the tuple returned by get_history_chatbot_response_with_storage
         ai_response_text, _ = get_history_chatbot_response_with_storage(
             query_text=chat_interaction.query,
@@ -487,7 +484,6 @@ async def chat_endpoint(chat_interaction: ChatInteraction):
     except Exception as e:
         print(f"Error in chat_endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get chat response: {e}")
-
 
 if __name__ == "__main__":
     import uvicorn
