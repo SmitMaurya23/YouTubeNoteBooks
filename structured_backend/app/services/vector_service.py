@@ -17,7 +17,7 @@ class VectorService:
         self.transcript_processing_service=transcript_processing_service
 
 
-    def embed_and_store_transcript(self, video_id: str,transcript_list: List[Dict])->bool:
+    async def embed_and_store_transcript(self, video_id: str,transcript_list: List[Dict])->bool:
         """
         Chunks the transcript, aggregates timestamps, and stores the documents via the repository.
         """

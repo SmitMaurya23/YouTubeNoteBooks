@@ -6,7 +6,7 @@ from langchain_google_vertexai import ChatVertexAI
 from langchain.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import PydanticOutputParser
-from app.schemas.schema import VideoDescription
+from app.core.schema import VideoDescription
 
 class GenAIService:
     def __init__(self, llm: ChatVertexAI):

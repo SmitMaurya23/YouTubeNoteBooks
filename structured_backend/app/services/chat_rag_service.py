@@ -6,7 +6,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_google_vertexai import ChatVertexAI
 
 from app.services.rag_service import BasicRAGService
-from app.schemas.schema import ChatMessage
+from app.core.schema import ChatMessage
 
 MAX_VERBATIM_HISTORY_LENGTH=6
 

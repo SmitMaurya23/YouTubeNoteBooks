@@ -4,7 +4,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 from app.services.chat_rag_service import ChatRAGService
 from app.repositories.mongodb_repository import MongoDBRepository
-from app.schemas.schema import ChatMessage
+from app.core.schema import ChatMessage
 
 class PersistentChatRAGService:
     """
@@ -23,7 +23,7 @@ class PersistentChatRAGService:
         and then saving the updated history back to storage.
         """
         # 1. Retrieve history from storage
-        chat_history = self.mongo_repo.get_chat_history(session_id)
+        chat_history = await self.mongo_repo.get_chat_history(session_id)
 
         # 2. Generate the response using the chat RAG service
         ai_response_text = await self.chat_rag_service.get_response(
@@ -33,7 +33,7 @@ class PersistentChatRAGService:
         )
 
         # 3. Update history in storage
-        self.mongo_repo.update_chat_history(
+        await self.mongo_repo.update_chat_history(
             session_id=session_id,
             user_message=ChatMessage(role="user", content=query_text),
             ai_message=ChatMessage(role="assistant", content=ai_response_text)

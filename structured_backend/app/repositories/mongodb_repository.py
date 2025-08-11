@@ -4,7 +4,7 @@ from pymongo.collection import Collection
 from bson.objectid import ObjectId
 import uuid
 from typing import List, Dict, Optional
-from app.schemas.schema import ChatMessage, ChatSessionSummary
+from app.core.schema import ChatMessage, ChatSessionSummary
 from datetime import datetime
 from app.core.settings import settings
 
@@ -12,7 +12,7 @@ class MongoDBRepository:
 
     """Repository class to handle all interactions with the MongoDB database"""
 
-    def __init__(self, client: MongoClient):
+    async def __init__(self, client: MongoClient):
         if(settings.DB_NAME is None):
             raise
         self.db=client[settings.DB_NAME]
@@ -21,7 +21,7 @@ class MongoDBRepository:
         self.chat_sessions_collection.create_index("session_id", unique=True)
         print(f"MongoDBRepository connected to database: {self.db.name}")
 
-    def create_new_chat_session(self, user_id:str, notebook_id:str, video_id:str, first_user_prompt:str="")->str:
+    async def create_new_chat_session(self, user_id:str, notebook_id:str, video_id:str, first_user_prompt:str="")->str:
         session_id=str(uuid.uuid4())
         session_data={
             "session_id": session_id,
@@ -46,7 +46,7 @@ class MongoDBRepository:
 
         return session_id
 
-    def get_chat_history(self, session_id:str)->List[ChatMessage]:
+    async def get_chat_history(self, session_id:str)->List[ChatMessage]:
         session_doc=self.chat_sessions_collection.find_one({
             "session_id":session_id
         })
@@ -54,7 +54,7 @@ class MongoDBRepository:
             return [ChatMessage(**msg) for msg in session_doc["history"]]
         return []
 
-    def update_chat_history(self, session_id:str, user_message: ChatMessage, ai_message: ChatMessage):
+    async def update_chat_history(self, session_id:str, user_message: ChatMessage, ai_message: ChatMessage):
         self.chat_sessions_collection.update_one(
             {"session_id":session_id},
             {
@@ -63,7 +63,7 @@ class MongoDBRepository:
             }
         )
 
-    def get_session_summary(self, session_id:str)->Optional[ChatSessionSummary]:
+    async def get_session_summary(self, session_id:str)->Optional[ChatSessionSummary]:
         session_doc=self.chat_sessions_collection.find_one(
             {"session_id":session_id},
             {"session_id":1, "first_prompt":1, "created_at":1, "notebook_id": 1}
@@ -71,5 +71,27 @@ class MongoDBRepository:
         if session_doc:
             return ChatSessionSummary(**session_doc)
         return None
+
+    async def get_video(self,video_id:str):
+        pass
+    async def update_video_details(self,video_id, transcript_list, transcript_text, generated_description):
+        pass
+    async def create_video_placeholder(self, video_id, video_submission_url, initial_description):
+        pass
+    async def get_video_transcript(self, video_id):
+        pass
+    async def create_notebook(self, notebook_data):
+        pass
+    async def get_user_notebooks(self, user_id):
+        pass
+    async def get_single_notebook(self, notebook_id):
+        pass
+    async def get_notebook_chat_sessions_summaries(self,notebook_id):
+        pass
+    async def create_user(self,user_data):
+        pass
+    async def authenticate_user(self,user_data):
+        pass
+
 
 

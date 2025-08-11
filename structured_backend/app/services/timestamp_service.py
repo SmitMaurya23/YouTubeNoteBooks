@@ -3,7 +3,7 @@
 import sys
 from langchain_google_vertexai import ChatVertexAI
 from app.repositories.vector_repository import VectorRepository
-from app.schemas.schema import TimestampEntry, TimestampResponse
+from app.core.schema import TimestampEntry, TimestampResponse
 from langchain.output_parsers import PydanticOutputParser
 from typing import List, Dict
 from langchain_core.documents import Document

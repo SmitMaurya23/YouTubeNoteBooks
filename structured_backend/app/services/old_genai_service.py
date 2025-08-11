@@ -2,7 +2,7 @@ import re
 import json
 from langchain_google_vertexai import ChatVertexAI
 from langchain.prompts import PromptTemplate
-from app.schemas.schema import VideoDescription
+from app.core.schema import VideoDescription
 from typing import  Dict, Any
 
 class GenAIService:

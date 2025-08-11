@@ -1,6 +1,6 @@
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from app.schemas.schema import TranscriptEntry
+from app.core.schema import TranscriptEntry
 from typing import List, Dict
 from langchain_core.documents import Document
 

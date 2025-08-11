@@ -1,0 +1,2 @@
+class TextService:
+    pass
