@@ -4,15 +4,15 @@ from pymongo.collection import Collection
 from bson.objectid import ObjectId
 import uuid
 from typing import List, Dict, Optional
-from app.core.schema import ChatMessage, ChatSessionSummary
+from app.core.schema import ChatMessage, ChatSessionSummary, VideoDescription, VideoDBEntry
 from datetime import datetime
 from app.core.settings import settings
 
-class MongoDBRepository:
+class ChatMongoDBRepository:
 
     """Repository class to handle all interactions with the MongoDB database"""
 
-    async def __init__(self, client: MongoClient):
+    def __init__(self, client: MongoClient):
         if(settings.DB_NAME is None):
             raise
         self.db=client[settings.DB_NAME]
@@ -71,27 +71,6 @@ class MongoDBRepository:
         if session_doc:
             return ChatSessionSummary(**session_doc)
         return None
-
-    async def get_video(self,video_id:str):
-        pass
-    async def update_video_details(self,video_id, transcript_list, transcript_text, generated_description):
-        pass
-    async def create_video_placeholder(self, video_id, video_submission_url, initial_description):
-        pass
-    async def get_video_transcript(self, video_id):
-        pass
-    async def create_notebook(self, notebook_data):
-        pass
-    async def get_user_notebooks(self, user_id):
-        pass
-    async def get_single_notebook(self, notebook_id):
-        pass
-    async def get_notebook_chat_sessions_summaries(self,notebook_id):
-        pass
-    async def create_user(self,user_data):
-        pass
-    async def authenticate_user(self,user_data):
-        pass
 
 
 

@@ -12,10 +12,14 @@ from app.services.vector_service import VectorService
 from app.services.transcript_processing_service import TranscriptProcessingService
 from app.services.timestamp_service import TimestampService
 from pymongo import MongoClient
-from app.repositories.mongodb_repository import MongoDBRepository
+from app.repositories.chat_mongodb_repository import ChatMongoDBRepository
 from app.services.chat_rag_service import ChatRAGService
 from app.services.persistant_chat_rag_service import PersistentChatRAGService
 from app.services.rag_service import BasicRAGService
+from app.repositories.video_mongodb_repository import VideoMongoDBRepository
+from app.repositories.user_mongodb_repository import UserMongoDBRepository
+from app.repositories.notebook_mongodb_repository import NotebookMongoDBRepository
+from app.services.notebook_service import NotebookService
 
 
 
@@ -171,9 +175,9 @@ def get_mongo_client()->MongoClient:
     MONGO_URI=settings.MONGODB_URI
     return MongoClient(MONGO_URI)
 
-def get_mongodb_repository(client: MongoClient=Depends(get_mongo_client))->MongoDBRepository:
+def get_chat_mongodb_repository(client: MongoClient=Depends(get_mongo_client))->ChatMongoDBRepository:
     """Provides a MongoDBRepository instance."""
-    return MongoDBRepository(client)
+    return ChatMongoDBRepository(client)
 
 def get_basic_rag_service(
         llm: ChatVertexAI=Depends(get_gemini_model),
@@ -191,7 +195,19 @@ def get_chat_rag_service(
 
 def get_persistant_chat_rag_service(
         chat_rag_service: ChatRAGService=Depends(get_chat_rag_service),
-        mongo_repo: MongoDBRepository=Depends(get_mongodb_repository)
+        chat_mongo_repo: ChatMongoDBRepository=Depends(get_chat_mongodb_repository)
 )->PersistentChatRAGService:
     """Provides the full persistent chat service."""
-    return PersistentChatRAGService(chat_rag_service,mongo_repo)
+    return PersistentChatRAGService(chat_rag_service,chat_mongo_repo)
+
+def get_video_mongodb_repository(client: MongoClient=Depends(get_mongo_client))->VideoMongoDBRepository:
+    return VideoMongoDBRepository(client)
+
+def get_user_mongodb_repository(client: MongoClient=Depends(get_mongo_client))->UserMongoDBRepository:
+    return UserMongoDBRepository(client)
+
+def get_notebook_mongodb_repository(client: MongoClient=Depends(get_mongo_client))->NotebookMongoDBRepository:
+    return NotebookMongoDBRepository(client)
+
+def get_notebook_service(user_mongodb_repository:UserMongoDBRepository=Depends(get_user_mongodb_repository), notebook_mongodb_repository: NotebookMongoDBRepository=Depends(get_notebook_mongodb_repository),chat_mongodb_repository=Depends(get_chat_mongodb_repository))->NotebookService:
+    return NotebookService(user_mongodb_repository,notebook_mongodb_repository,chat_mongodb_repository)

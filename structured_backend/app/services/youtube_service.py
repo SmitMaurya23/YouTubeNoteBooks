@@ -4,7 +4,7 @@ from urllib.parse import urlparse, parse_qs
 
 
 class YouTubeService:
-    async def extract_video_id(self,url: str) -> str:
+    def extract_video_id(self,url: str) -> str:
         """Extract YouTube video ID from URL."""
         parsed_url = urlparse(url)
         if parsed_url.hostname in ("www.youtube.com", "youtube.com"):
@@ -15,7 +15,7 @@ class YouTubeService:
             return parsed_url.path.lstrip("/")
         return ""
 
-    async def fetch_transcript(self,video_id: str) -> list:
+    def fetch_transcript(self,video_id: str) -> list:
         """Fetch and format transcript from YouTube."""
         try:
             transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=["en-GB", "en-IN", "en-CA", "en-AU", "en"])

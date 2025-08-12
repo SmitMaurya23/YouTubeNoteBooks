@@ -2,10 +2,10 @@
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from app.core.dependencies import get_mongodb_repository
-from app.repositories.mongodb_repository import MongoDBRepository
-from app.core.schema import NotebookCreate, ChatSessionSummary
-from app.core.schema import NotebookModel
+from app.core.dependencies import get_notebook_mongodb_repository, get_notebook_service
+from app.repositories.notebook_mongodb_repository import NotebookMongoDBRepository
+from app.core.schema import NotebookCreate, ChatSessionSummary, NotebookDBEntry
+from app.services.notebook_service import NotebookService
 
 router = APIRouter(
     prefix="/notebooks",
@@ -14,50 +14,56 @@ router = APIRouter(
 
 @router.post("/")
 async def create_notebook_endpoint(
-    notebook_data: NotebookCreate,
-    mongo_repo: MongoDBRepository = Depends(get_mongodb_repository)
+    notebook_create: NotebookCreate,
+    notebook_servce: NotebookService = Depends(get_notebook_service)
 ):
     try:
-        notebook_id = await mongo_repo.create_notebook(notebook_data)
-        return {"message": "Notebook created successfully!", "notebook_id": str(notebook_id)}
+        notebook_db_entry= notebook_servce.create_notebook_service(notebook_create)
+        if not notebook_db_entry:
+            raise HTTPException(status_code=404, detail=f"Failed to create notebook")
+        return {"message": "Notebook created successfully!", "notebook_id": str(notebook_db_entry.id)}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create notebook: {e}")
 
-@router.get("/{user_id}", response_model=List[NotebookModel]) # response model added for clarity
+
+
+
+@router.get("/{user_id}")
 async def get_user_notebooks_endpoint(
     user_id: str,
-    mongo_repo: MongoDBRepository = Depends(get_mongodb_repository)
+    notebook_service: NotebookService = Depends(get_notebook_service)
 ):
     try:
-        notebooks = await mongo_repo.get_user_notebooks(user_id)
+        notebooks = notebook_service.get_user_notebooks(user_id)
         return {"message": "Notebooks retrieved successfully!", "notebooks": notebooks}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve notebooks: {e}")
 
-@router.get("/{notebook_id}", response_model=NotebookModel)
+
+@router.get("/{notebook_id}")
 async def get_single_notebook_endpoint(
     notebook_id: str,
-    mongo_repo: MongoDBRepository = Depends(get_mongodb_repository)
+    notebook_mongo_repo: NotebookMongoDBRepository = Depends(get_notebook_mongodb_repository)
 ):
     try:
-        notebook = await mongo_repo.get_single_notebook(notebook_id)
+        notebook = notebook_mongo_repo.find_notebook_by_id(notebook_id)
         return {"message": "Notebook retrieved successfully!", "notebook": notebook}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve notebook: {e}")
 
-@router.get("/{notebook_id}/chat_sessions", response_model=List[ChatSessionSummary])
+@router.get("/{notebook_id}/chat_sessions")
 async def get_notebook_chat_sessions_summaries_endpoint(
     notebook_id: str,
-    mongo_repo: MongoDBRepository = Depends(get_mongodb_repository)
+    notebook_servce: NotebookService = Depends(get_notebook_service)
 ):
     try:
-        summaries = await mongo_repo.get_notebook_chat_sessions_summaries(notebook_id)
+        summaries = notebook_servce.get_notebook_chat_sessions_summaries(notebook_id)
         return summaries
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

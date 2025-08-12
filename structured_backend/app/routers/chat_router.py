@@ -1,11 +1,11 @@
 # app/routers/chat_router.py
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
-from app.core.dependencies import get_basic_rag_service, get_persistant_chat_rag_service,get_timestamp_service, get_mongodb_repository
+from app.core.dependencies import get_basic_rag_service, get_persistant_chat_rag_service,get_timestamp_service, get_chat_mongodb_repository
 from app.services.rag_service import BasicRAGService
 from app.services.persistant_chat_rag_service import PersistentChatRAGService
 from app.services.timestamp_service import TimestampService
-from app.repositories.mongodb_repository import MongoDBRepository
+from app.repositories.chat_mongodb_repository import ChatMongoDBRepository
 from app.core.schema import ChatQuery, ChatInteraction, ChatResponse, TimestampQuery
 
 router = APIRouter(
@@ -47,10 +47,10 @@ async def chat_endpoint(
 @router.get("/history/{session_id}")
 async def get_chat_session_history_endpoint(
     session_id: str,
-    mongo_repo: MongoDBRepository = Depends(get_mongodb_repository)
+    chat_mongo_repo: ChatMongoDBRepository = Depends(get_chat_mongodb_repository)
 ):
     try:
-        history = await mongo_repo.get_chat_history(session_id)
+        history = await chat_mongo_repo.get_chat_history(session_id)
         if not history:
             raise HTTPException(status_code=404, detail="Chat session or history not found.")
         return {"session_id": session_id, "history": history}
